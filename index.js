@@ -69,17 +69,19 @@ function isValidEmbedLink(embedLink) {
 let browser;
 
 async function processFile(filePath) {
+    if (browser) {
+        browser.close();
+    }
+
     browser = await playwright.firefox.launch({
-        headless: true, // Launching Firefox with headless mode should be disabled for debugging
+        headless: false, // Launching Firefox with headless mode should be disabled for debugging
     });
-    
-    resetBrowserContext(); // close all browser contexts
     
     const context = await browser.newContext({
         locale: 'en-US',
         extraHTTPHeaders: {
             'Accept-Language': 'en-US,en;q=0.9'
-        }
+        } 
     });
     const page = await context.newPage();
     const coordinates = await fs.readJson(filePath);
@@ -106,24 +108,21 @@ async function main() {
         await fs.emptyDir(outputDir);
 
         const files = await fs.readdir(inputDir);
+        const jsonFiles = files.filter(file => file.endsWith('.json'));
 
-        for (const file of files) {
+        for (const file of jsonFiles) {
             const filePath = path.join(inputDir, file);
-            await processFile(filePath);
+
+            try {
+                await processFile(filePath);
+            } catch (error) {
+                console.error(`Error processing file ${file}:`, error);
+            }
         }
 
         console.log('Processing complete.');
     } catch (error) {
         console.error('Error processing files:', error);
-    }
-}
-
-async function resetBrowserContext() {
-    if (browser) {
-        const contexts = browser.contexts();
-        for (const context of contexts) {
-            await context.close();
-        }
     }
 }
 
